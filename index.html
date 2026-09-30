@@ -34,10 +34,14 @@
             animation: fadeInUp 0.4s ease-out forwards;
         }
 
-        /* PERBAIKAN: CSS khusus untuk cetak/PDF agar konten tidak terpotong */
+        /* PERBAIKAN: CSS khusus untuk cetak/PDF */
         @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
             html, body {
-                width: 210mm;
+                width: 100% !important;
                 height: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
@@ -53,15 +57,11 @@
                 box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
-                page-break-inside: avoid;
-                break-inside: avoid;
+                overflow: visible !important;
+                transform: none !important;
             }
             .no-print {
                 display: none !important;
-            }
-            .print\:break-inside-avoid {
-                break-inside: avoid;
-                page-break-inside: avoid;
             }
         }
     </style>
@@ -181,44 +181,52 @@
             });
           };
 
-          // ========== PERBAIKAN UTAMA: Fungsi handlePrintPDF ==========
+          // ========== FUNGSI handlePrintPDF YANG SUDAH DIPERBAIKI ==========
           const handlePrintPDF = () => {
             setIsExporting(true);
-            setTimeout(() => {
+            
+            setTimeout(async () => {
               const element = document.getElementById('print-area');
               if (!element) {
                 setIsExporting(false);
                 return;
               }
 
-              // Simpan style asli
               const originalStyle = element.getAttribute('style') || '';
+              const originalClass = element.className;
 
-              // Atur lebar tetap agar konsisten saat render PDF
-              const targetWidth = 900;
+              // Lebar dioptimalkan untuk A4
+              const targetWidth = 780;
+
               element.style.width = `${targetWidth}px`;
               element.style.maxWidth = `${targetWidth}px`;
-              element.style.margin = '0 auto';
+              element.style.margin = '0';
+              element.style.padding = '0';
               element.style.boxSizing = 'border-box';
+              element.style.overflow = 'visible';
+              element.style.borderRadius = '0';
 
-              // Hitung tinggi setelah style diterapkan
+              element.classList.remove('overflow-hidden', 'max-w-4xl', 'rounded-2xl', 'shadow-2xl');
+
+              void element.offsetHeight;
+
               const targetHeight = element.scrollHeight;
 
               const opt = {
-                margin:       0,
+                margin:       [0, 0, 0, 0],
                 filename:     `LKPD_Informatika_Kelompok_${kelompok || 'X'}.pdf`,
-                image:        { type: 'jpeg', quality: 1.0 },
+                image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { 
                   scale: 2,
                   useCORS: true,
+                  allowTaint: true,
                   logging: false,
                   windowWidth: targetWidth,
                   width: targetWidth,
-                  scrollY: 0,
-                  scrollX: 0,
-                  // PERBAIKAN: Pastikan tinggi canvas mencakup seluruh konten
                   height: targetHeight,
-                  // PERBAIKAN: Gunakan opsi ini agar tidak ada pemotongan
+                  scrollX: 0,
+                  scrollY: 0,
+                  backgroundColor: '#ffffff',
                   onclone: (clonedDoc) => {
                     const clonedElement = clonedDoc.getElementById('print-area');
                     if (clonedElement) {
@@ -226,50 +234,56 @@
                       clonedElement.style.maxWidth = `${targetWidth}px`;
                       clonedElement.style.height = 'auto';
                       clonedElement.style.overflow = 'visible';
+                      clonedElement.style.margin = '0';
+                      clonedElement.style.padding = '0';
+                      clonedElement.style.borderRadius = '0';
+                      clonedElement.style.boxShadow = 'none';
+                      clonedElement.classList.remove('overflow-hidden', 'max-w-4xl', 'rounded-2xl', 'shadow-2xl');
                     }
+                    clonedDoc.querySelectorAll('.no-print').forEach(el => {
+                      el.style.display = 'none';
+                    });
                   }
                 },
                 jsPDF: { 
                   unit: 'px', 
-                  // PERBAIKAN: Gunakan format kustom dengan tinggi yang cukup
-                  // Tambahkan buffer tinggi agar tidak terpotong
-                  format: [targetWidth, Math.ceil(targetHeight * 1.05)],
+                  format: [targetWidth, Math.ceil(targetHeight + 20)],
                   orientation: 'portrait',
+                  compress: true,
                   hotfixes: ["px_scaling"]
                 },
-                // PERBAIKAN: Tambahkan pagebreak agar konten tidak terpotong
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                pagebreak: { 
+                  mode: ['css', 'legacy'],
+                  avoid: ['.print\\:break-inside-avoid', 'tr', 'img', 'h1', 'h2', 'h3', 'table']
+                }
               };
 
               const finishExport = () => {
-                // Kembalikan style asli
                 if (originalStyle) {
                   element.setAttribute('style', originalStyle);
                 } else {
                   element.removeAttribute('style');
                 }
+                element.className = originalClass;
                 setIsExporting(false);
               };
 
-              if (window.html2pdf) {
-                window.html2pdf()
-                  .set(opt)
-                  .from(element)
-                  .save()
-                  .then(finishExport)
-                  .catch(err => {
-                    console.error("Gagal export PDF", err);
-                    finishExport();
-                    // Fallback ke print browser
-                    window.print();
-                  });
-              } else {
+              try {
+                if (window.html2pdf) {
+                  await window.html2pdf().set(opt).from(element).save();
+                  finishExport();
+                } else {
+                  finishExport();
+                  window.print();
+                }
+              } catch (err) {
+                console.error("Gagal export PDF", err);
                 finishExport();
                 window.print();
               }
-            }, 600);
+            }, 800);
           };
-          // ========== AKHIR PERBAIKAN ==========
+          // ========== AKHIR FUNGSI handlePrintPDF ==========
 
           if (isFinished) {
             return (
