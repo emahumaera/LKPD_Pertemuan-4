@@ -153,69 +153,50 @@
           const handlePrintPDF = () => {
             setIsExporting(true);
             
-            // 1. Paksa scroll ke paling atas agar html2canvas tidak memotong konten yang ada di bawah layar
+            // 1. Paksa scroll ke paling atas agar html2canvas tidak memotong konten
             window.scrollTo(0, 0);
 
-            // 2. Perpanjang waktu tunggu (800ms) agar browser selesai menyesuaikan layout
+            // 2. Waktu tunggu agar browser & gambar benar-benar selesai di-render
             setTimeout(() => {
               const element = document.getElementById('print-area');
               
-              const originalStyle = element.getAttribute('style');
-              const targetWidth = 900; 
-              
-              // 3. Paksa elemen untuk mengekspos seluruh kontennya tanpa batasan
-              element.style.width = `${targetWidth}px`;
-              element.style.maxWidth = `${targetWidth}px`;
-              element.style.margin = '0'; 
-              element.style.overflow = 'visible'; 
-              element.style.height = 'auto'; // Pastikan tinggi otomatis menyesuaikan isi
-              
-              // 4. Hitung ulang tinggi persis setelah style di atas diterapkan + sedikit buffer
-              const targetHeight = element.scrollHeight + 30; 
+              // 3. Gunakan scrollWidth & scrollHeight natural dari elemen, ditambah buffer agar aman
+              const contentWidth = element.scrollWidth;
+              const contentHeight = element.scrollHeight + 60; 
               
               const opt = {
-                margin:       0, 
+                margin:       10, 
                 filename:     `LKPD_Informatika_Kelompok_${kelompok || 'X'}.pdf`,
                 image:        { type: 'jpeg', quality: 1.0 },
                 html2canvas:  { 
                   scale: 2, 
                   useCORS: true, 
                   logging: false, 
-                  windowWidth: targetWidth, 
-                  width: targetWidth,
-                  windowHeight: targetHeight,
-                  height: targetHeight,
                   scrollY: 0, 
                   scrollX: 0
+                  // Kita hapus setingan width/height paksa di sini agar canvas menyesuaikan otomatis
                 },
                 jsPDF:        { 
                   unit: 'px', 
-                  format: [targetWidth, targetHeight], 
+                  format: [contentWidth + 20, contentHeight + 20], // +20 untuk kompensasi margin
                   orientation: 'portrait',
                   hotfixes: ["px_scaling"] 
                 }
               };
 
-              const finishExport = () => {
-                if (originalStyle !== null) {
-                  element.setAttribute('style', originalStyle);
-                } else {
-                  element.removeAttribute('style');
-                }
-                setIsExporting(false);
-              };
-
               if (window.html2pdf) {
-                window.html2pdf().set(opt).from(element).save().then(finishExport).catch(err => {
+                window.html2pdf().set(opt).from(element).save().then(() => {
+                  setIsExporting(false);
+                }).catch(err => {
                   console.error("Gagal export PDF", err);
-                  finishExport();
+                  setIsExporting(false);
                   window.print(); 
                 });
               } else {
-                finishExport();
+                setIsExporting(false);
                 window.print();
               }
-            }, 800); 
+            }, 1000); 
           };
 
           if (isFinished) {
