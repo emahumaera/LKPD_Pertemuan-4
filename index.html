@@ -152,14 +152,23 @@
 
           const handlePrintPDF = () => {
             setIsExporting(true);
+            window.scrollTo(0, 0); // Scroll ke atas untuk menghindari efek lompat jauh pada layar
+            
             setTimeout(() => {
               const element = document.getElementById('print-area');
               
               const originalStyle = element.getAttribute('style');
               const targetWidth = 900; 
+              
+              // FIX: Posisikan elemen secara absolut di pojok kiri atas (0,0) saat proses generate
+              // Hal ini mencegah html2canvas memotong sisi kiri elemen akibat margin auto (mx-auto) atau padding induk.
+              element.style.position = 'absolute';
+              element.style.left = '0';
+              element.style.top = '0';
+              element.style.margin = '0'; 
               element.style.width = `${targetWidth}px`;
               element.style.maxWidth = `${targetWidth}px`;
-              element.style.margin = '0'; 
+              element.style.transform = 'none';
               
               const targetHeight = element.offsetHeight;
               
@@ -233,7 +242,7 @@
                         <ul className="list-decimal ml-4 space-y-1 text-slate-700 text-xs">
                           <li>Kerjakan secara berkelompok (2 orang).</li>
                           <li>Pilih nomor kelompok, isi bagian A, B, dan C.</li>
-                          <li>scannerand drop perangkat ke kategori yang tepat.</li>
+                          <li>Drag and drop perangkat ke kategori yang tepat.</li>
                           <li>Presentasikan hasil kerja kelompok.</li>
                         </ul>
                       </div>
@@ -351,6 +360,7 @@
                   </div>
                 </div>
                 
+                {}
                 {isExporting ? (
                   <div className="mt-8 mb-10 flex justify-center text-teal-600 font-bold text-base md:text-xl items-center gap-3 bg-white p-5 rounded-2xl shadow border border-teal-100 max-w-2xl mx-auto animate-pulse">
                     <Monitor size={28} className="animate-bounce" /> Menyusun dokumen ke dalam 1 lembar PDF...
@@ -460,6 +470,7 @@
                   </div>
                 </section>
 
+                {}
                 {/* Bagian A */}
                 <section className="bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-indigo-500 animate-fade-in-up">
                   <div className="flex items-center gap-3 mb-6">
@@ -507,6 +518,7 @@
                   </div>
                 </section>
 
+                {}
                 {/* Bagian B (Skenario) */}
                 <section className={`bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-amber-500 transition-opacity duration-500 ${!activeScenario ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3 mb-6">
@@ -604,6 +616,7 @@
                   )}
                 </section>
 
+                {}
                 {/* Bagian C (Analisis) */}
                 <section className={`bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-blue-500 transition-opacity duration-500 ${!activeScenario ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3 mb-6">
