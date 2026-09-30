@@ -33,37 +33,6 @@
         .animate-fade-in-up {
             animation: fadeInUp 0.4s ease-out forwards;
         }
-
-        /* PERBAIKAN: CSS khusus untuk cetak/PDF */
-        @media print {
-            @page {
-                size: A4 portrait;
-                margin: 8mm;
-            }
-            html, body {
-                width: 100% !important;
-                height: auto !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-            #print-area {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                border-radius: 0 !important;
-                overflow: visible !important;
-                transform: none !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-        }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -181,109 +150,65 @@
             });
           };
 
-          // ========== FUNGSI handlePrintPDF YANG SUDAH DIPERBAIKI ==========
           const handlePrintPDF = () => {
             setIsExporting(true);
-            
-            setTimeout(async () => {
+            setTimeout(() => {
               const element = document.getElementById('print-area');
-              if (!element) {
-                setIsExporting(false);
-                return;
-              }
-
-              const originalStyle = element.getAttribute('style') || '';
-              const originalClass = element.className;
-
-              // Lebar dioptimalkan untuk A4
-              const targetWidth = 780;
-
+              
+              const originalStyle = element.getAttribute('style');
+              const targetWidth = 900; 
               element.style.width = `${targetWidth}px`;
               element.style.maxWidth = `${targetWidth}px`;
-              element.style.margin = '0';
-              element.style.padding = '0';
-              element.style.boxSizing = 'border-box';
-              element.style.overflow = 'visible';
-              element.style.borderRadius = '0';
-
-              element.classList.remove('overflow-hidden', 'max-w-4xl', 'rounded-2xl', 'shadow-2xl');
-
-              void element.offsetHeight;
-
+              element.style.margin = '0'; 
+              
+              // PERBAIKAN: Menggunakan scrollHeight agar PDF mencakup seluruh tinggi elemen meskipun diluar viewport (tidak terpotong setengah)
               const targetHeight = element.scrollHeight;
-
+              
               const opt = {
-                margin:       [0, 0, 0, 0],
+                margin:       0, 
                 filename:     `LKPD_Informatika_Kelompok_${kelompok || 'X'}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
+                image:        { type: 'jpeg', quality: 1.0 },
                 html2canvas:  { 
-                  scale: 2,
-                  useCORS: true,
-                  allowTaint: true,
-                  logging: false,
-                  windowWidth: targetWidth,
+                  scale: 2, 
+                  useCORS: true, 
+                  logging: false, 
+                  windowWidth: targetWidth, 
                   width: targetWidth,
+                  // PERBAIKAN: Menambahkan windowHeight & height agar area render canvas disesuaikan ke ukuran asli konten
+                  windowHeight: targetHeight,
                   height: targetHeight,
-                  scrollX: 0,
-                  scrollY: 0,
-                  backgroundColor: '#ffffff',
-                  onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.getElementById('print-area');
-                    if (clonedElement) {
-                      clonedElement.style.width = `${targetWidth}px`;
-                      clonedElement.style.maxWidth = `${targetWidth}px`;
-                      clonedElement.style.height = 'auto';
-                      clonedElement.style.overflow = 'visible';
-                      clonedElement.style.margin = '0';
-                      clonedElement.style.padding = '0';
-                      clonedElement.style.borderRadius = '0';
-                      clonedElement.style.boxShadow = 'none';
-                      clonedElement.classList.remove('overflow-hidden', 'max-w-4xl', 'rounded-2xl', 'shadow-2xl');
-                    }
-                    clonedDoc.querySelectorAll('.no-print').forEach(el => {
-                      el.style.display = 'none';
-                    });
-                  }
+                  scrollY: 0, 
+                  scrollX: 0
                 },
-                jsPDF: { 
+                jsPDF:        { 
                   unit: 'px', 
-                  format: [targetWidth, Math.ceil(targetHeight + 20)],
+                  format: [targetWidth, targetHeight], 
                   orientation: 'portrait',
-                  compress: true,
-                  hotfixes: ["px_scaling"]
-                },
-                pagebreak: { 
-                  mode: ['css', 'legacy'],
-                  avoid: ['.print\\:break-inside-avoid', 'tr', 'img', 'h1', 'h2', 'h3', 'table']
+                  hotfixes: ["px_scaling"] 
                 }
               };
 
               const finishExport = () => {
-                if (originalStyle) {
+                if (originalStyle !== null) {
                   element.setAttribute('style', originalStyle);
                 } else {
                   element.removeAttribute('style');
                 }
-                element.className = originalClass;
                 setIsExporting(false);
               };
 
-              try {
-                if (window.html2pdf) {
-                  await window.html2pdf().set(opt).from(element).save();
+              if (window.html2pdf) {
+                window.html2pdf().set(opt).from(element).save().then(finishExport).catch(err => {
+                  console.error("Gagal export PDF", err);
                   finishExport();
-                } else {
-                  finishExport();
-                  window.print();
-                }
-              } catch (err) {
-                console.error("Gagal export PDF", err);
+                  window.print(); 
+                });
+              } else {
                 finishExport();
                 window.print();
               }
-            }, 800);
+            }, 500);
           };
-          // ========== AKHIR FUNGSI handlePrintPDF ==========
 
           if (isFinished) {
             return (
