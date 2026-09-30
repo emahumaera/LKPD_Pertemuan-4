@@ -33,6 +33,37 @@
         .animate-fade-in-up {
             animation: fadeInUp 0.4s ease-out forwards;
         }
+
+        /* PERBAIKAN: CSS khusus untuk cetak/PDF agar konten tidak terpotong */
+        @media print {
+            html, body {
+                width: 210mm;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #print-area {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print\:break-inside-avoid {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -150,51 +181,69 @@
             });
           };
 
+          // ========== PERBAIKAN UTAMA: Fungsi handlePrintPDF ==========
           const handlePrintPDF = () => {
             setIsExporting(true);
-            window.scrollTo(0, 0); // Scroll ke atas untuk menghindari efek lompat jauh pada layar
-            
             setTimeout(() => {
               const element = document.getElementById('print-area');
-              
-              const originalStyle = element.getAttribute('style');
-              const targetWidth = 900; 
-              
-              // FIX: Posisikan elemen secara absolut di pojok kiri atas (0,0) saat proses generate
-              // Hal ini mencegah html2canvas memotong sisi kiri elemen akibat margin auto (mx-auto) atau padding induk.
-              element.style.position = 'absolute';
-              element.style.left = '0';
-              element.style.top = '0';
-              element.style.margin = '0'; 
+              if (!element) {
+                setIsExporting(false);
+                return;
+              }
+
+              // Simpan style asli
+              const originalStyle = element.getAttribute('style') || '';
+
+              // Atur lebar tetap agar konsisten saat render PDF
+              const targetWidth = 900;
               element.style.width = `${targetWidth}px`;
               element.style.maxWidth = `${targetWidth}px`;
-              element.style.transform = 'none';
-              
-              const targetHeight = element.offsetHeight;
-              
+              element.style.margin = '0 auto';
+              element.style.boxSizing = 'border-box';
+
+              // Hitung tinggi setelah style diterapkan
+              const targetHeight = element.scrollHeight;
+
               const opt = {
-                margin:       0, 
+                margin:       0,
                 filename:     `LKPD_Informatika_Kelompok_${kelompok || 'X'}.pdf`,
                 image:        { type: 'jpeg', quality: 1.0 },
                 html2canvas:  { 
-                  scale: 2, 
-                  useCORS: true, 
-                  logging: false, 
-                  windowWidth: targetWidth, 
-                  width: targetWidth,       
-                  scrollY: 0, 
-                  scrollX: 0
+                  scale: 2,
+                  useCORS: true,
+                  logging: false,
+                  windowWidth: targetWidth,
+                  width: targetWidth,
+                  scrollY: 0,
+                  scrollX: 0,
+                  // PERBAIKAN: Pastikan tinggi canvas mencakup seluruh konten
+                  height: targetHeight,
+                  // PERBAIKAN: Gunakan opsi ini agar tidak ada pemotongan
+                  onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.getElementById('print-area');
+                    if (clonedElement) {
+                      clonedElement.style.width = `${targetWidth}px`;
+                      clonedElement.style.maxWidth = `${targetWidth}px`;
+                      clonedElement.style.height = 'auto';
+                      clonedElement.style.overflow = 'visible';
+                    }
+                  }
                 },
-                jsPDF:        { 
+                jsPDF: { 
                   unit: 'px', 
-                  format: [targetWidth, targetHeight], 
+                  // PERBAIKAN: Gunakan format kustom dengan tinggi yang cukup
+                  // Tambahkan buffer tinggi agar tidak terpotong
+                  format: [targetWidth, Math.ceil(targetHeight * 1.05)],
                   orientation: 'portrait',
-                  hotfixes: ["px_scaling"] 
-                }
+                  hotfixes: ["px_scaling"]
+                },
+                // PERBAIKAN: Tambahkan pagebreak agar konten tidak terpotong
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
               };
 
               const finishExport = () => {
-                if (originalStyle !== null) {
+                // Kembalikan style asli
+                if (originalStyle) {
                   element.setAttribute('style', originalStyle);
                 } else {
                   element.removeAttribute('style');
@@ -203,17 +252,24 @@
               };
 
               if (window.html2pdf) {
-                window.html2pdf().set(opt).from(element).save().then(finishExport).catch(err => {
-                  console.error("Gagal export PDF", err);
-                  finishExport();
-                  window.print(); 
-                });
+                window.html2pdf()
+                  .set(opt)
+                  .from(element)
+                  .save()
+                  .then(finishExport)
+                  .catch(err => {
+                    console.error("Gagal export PDF", err);
+                    finishExport();
+                    // Fallback ke print browser
+                    window.print();
+                  });
               } else {
                 finishExport();
                 window.print();
               }
-            }, 500);
+            }, 600);
           };
+          // ========== AKHIR PERBAIKAN ==========
 
           if (isFinished) {
             return (
@@ -242,7 +298,7 @@
                         <ul className="list-decimal ml-4 space-y-1 text-slate-700 text-xs">
                           <li>Kerjakan secara berkelompok (2 orang).</li>
                           <li>Pilih nomor kelompok, isi bagian A, B, dan C.</li>
-                          <li>Drag and drop perangkat ke kategori yang tepat.</li>
+                          <li>scannerand drop perangkat ke kategori yang tepat.</li>
                           <li>Presentasikan hasil kerja kelompok.</li>
                         </ul>
                       </div>
@@ -360,7 +416,6 @@
                   </div>
                 </div>
                 
-                {}
                 {isExporting ? (
                   <div className="mt-8 mb-10 flex justify-center text-teal-600 font-bold text-base md:text-xl items-center gap-3 bg-white p-5 rounded-2xl shadow border border-teal-100 max-w-2xl mx-auto animate-pulse">
                     <Monitor size={28} className="animate-bounce" /> Menyusun dokumen ke dalam 1 lembar PDF...
@@ -470,7 +525,6 @@
                   </div>
                 </section>
 
-                {}
                 {/* Bagian A */}
                 <section className="bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-indigo-500 animate-fade-in-up">
                   <div className="flex items-center gap-3 mb-6">
@@ -518,7 +572,6 @@
                   </div>
                 </section>
 
-                {}
                 {/* Bagian B (Skenario) */}
                 <section className={`bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-amber-500 transition-opacity duration-500 ${!activeScenario ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3 mb-6">
@@ -616,7 +669,6 @@
                   )}
                 </section>
 
-                {}
                 {/* Bagian C (Analisis) */}
                 <section className={`bg-white rounded-3xl shadow-lg p-6 md:p-8 border-t-4 border-blue-500 transition-opacity duration-500 ${!activeScenario ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                   <div className="flex items-center gap-3 mb-6">
