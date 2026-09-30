@@ -152,17 +152,26 @@
 
           const handlePrintPDF = () => {
             setIsExporting(true);
+            
+            // 1. Paksa scroll ke paling atas agar html2canvas tidak memotong konten yang ada di bawah layar
+            window.scrollTo(0, 0);
+
+            // 2. Perpanjang waktu tunggu (800ms) agar browser selesai menyesuaikan layout
             setTimeout(() => {
               const element = document.getElementById('print-area');
               
               const originalStyle = element.getAttribute('style');
               const targetWidth = 900; 
+              
+              // 3. Paksa elemen untuk mengekspos seluruh kontennya tanpa batasan
               element.style.width = `${targetWidth}px`;
               element.style.maxWidth = `${targetWidth}px`;
               element.style.margin = '0'; 
+              element.style.overflow = 'visible'; 
+              element.style.height = 'auto'; // Pastikan tinggi otomatis menyesuaikan isi
               
-              // PERBAIKAN: Menggunakan scrollHeight agar PDF mencakup seluruh tinggi elemen meskipun diluar viewport (tidak terpotong setengah)
-              const targetHeight = element.scrollHeight;
+              // 4. Hitung ulang tinggi persis setelah style di atas diterapkan + sedikit buffer
+              const targetHeight = element.scrollHeight + 30; 
               
               const opt = {
                 margin:       0, 
@@ -174,7 +183,6 @@
                   logging: false, 
                   windowWidth: targetWidth, 
                   width: targetWidth,
-                  // PERBAIKAN: Menambahkan windowHeight & height agar area render canvas disesuaikan ke ukuran asli konten
                   windowHeight: targetHeight,
                   height: targetHeight,
                   scrollY: 0, 
@@ -207,13 +215,14 @@
                 finishExport();
                 window.print();
               }
-            }, 500);
+            }, 800); 
           };
 
           if (isFinished) {
             return (
               <div className="min-h-screen bg-slate-100 p-2 md:p-6 font-sans text-slate-800 print:bg-white print:p-0">
-                <div id="print-area" className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 print:shadow-none print:border-none print:rounded-none [print-color-adjust:exact]">
+                {/* 5. Hapus class 'overflow-hidden' dari pembungkus utama print-area yang sering menyebabkan konten terpotong */}
+                <div id="print-area" className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl border border-slate-200 print:shadow-none print:border-none print:rounded-none [print-color-adjust:exact]">
                   
                   <div className="bg-gradient-to-r from-teal-600 to-indigo-700 py-3 px-6 text-white text-center">
                     <h1 className="text-2xl font-bold uppercase tracking-wider mb-0.5 drop-shadow-md">Ringkasan LKPD</h1>
